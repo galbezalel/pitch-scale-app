@@ -1,43 +1,39 @@
-# Android Pitch Scaler
+# Pitch Scaler (Android + iOS + macOS)
 
-A sleek, native Android application that captures system audio in real-time, applies pitch-shifting (scaling) via SoundTouch (C++ NDK), and routes the audio back to the user seamlessly. It's built with Jetpack Compose for a modern UI.
+A D.R.Y. cross-platform **Kotlin Multiplatform + Compose Multiplatform** application for real-time audio pitch shifting across **Android**, **iOS** (including a **Safari Web Extension**), and **macOS Desktop**.
 
-![Pitch Scaler Icon](app/src/main/res/mipmap-xxxhdpi/ic_launcher.png)
+![Pitch Scaler Icon](composeApp/src/androidMain/res/mipmap-xxxhdpi/ic_launcher.png)
 
-## Features
-- **Real-Time System Audio Capture:** Uses the Android 10+ `AudioPlaybackCapture` API to record audio playing from other apps (e.g., Spotify, YouTube).
-- **High-Performance Pitch Shifting:** Powered by the native [SoundTouch](https://codeberg.org/soundtouch/soundtouch) C++ library running directly in a DSP thread via JNI, ensuring low latency and high quality compared to pure-Kotlin implementations.
-- **Dynamic Audio Routing:** Automatically detects headphone connectivity and routes the shifted audio optimally:
-  - Headphones connected: Uses the `Accessibility` stream.
-  - No headphones: Uses the `Alarm` stream.
-- **MediaSession Volume Interception:** Hijacks the physical hardware volume buttons globally when active, allowing you to seamlessly control the pitch-shifted audio volume without accidentally unmuting the original background app.
+## D.R.Y. Shared Architecture
+- **100% Shared UI & State (`composeApp/src/commonMain`)**: A single Compose Multiplatform codebase renders the dark neon dashboard, `SiriWaveform` visualizer, semitone controls (`-12` to `+12`), and mode selector natively on **Android, iOS, and macOS**.
+- **Shared C++ SoundTouch DSP (`native/soundtouch`)**: Single source of truth for the native [SoundTouch](https://codeberg.org/soundtouch/soundtouch) C++ library with a platform-agnostic C API (`soundtouch_c_api.h`), shared by **both Android (NDK) and macOS (`libpitchscale_macos.dylib`)**.
+- **Shared Web Audio Pitch Engine (`shared-web/`)**: Single WSOLA `AudioWorkletProcessor` (`pitch-worklet.js`) and media-element hook (`pitch-engine.js`) reused identically by both the **iOS In-App Browser Player** and the **iOS Safari Web Extension**.
+- **Single Unified Build (`./build-all.sh`)**: Builds **all three apps** in one command.
 
-## Important Limitations
+## Platform Highlights
 
-Due to Android's strict audio sandboxing and security model, this application cannot natively drop or mute the source application's playback passively. To avoid hearing a terrible echo (the original song playing over the pitch-shifted song), this app implements a hybrid routing strategy:
-1. It records the `Media` stream.
-2. It scales the captured audio and plays it over either the `Alarm` stream or the `Accessibility` stream (depending on if headphones are connected).
-3. It aggressively sets the system's `Media` stream volume to `0` to mute the original app.
+### macOS Desktop (macOS 14.2+) — Completely Seamless!
+- Uses Apple's native **Core Audio Process Taps** (`CATapDescription` + `AudioHardwareCreateProcessTap`) with `CATapMutedWhenTapped` and a private hardware-synchronized **Aggregate Device**.
+- Captures **all system audio** (Spotify, Apple Music, YouTube, Safari, Chrome, DAWs, etc.), automatically mutes the unshifted original audio at the hardware level, excludes Pitch Scaler's own PID, runs the shared C++ SoundTouch DSP in stereo, and outputs directly to your default MacBook speakers / AirPods / DAC with normal volume keys—**no virtual audio drivers (no BlackHole) required**.
 
-If the volume automation fails on your specific Android skin, **you must manually mute your phone's Media stream to properly listen to the shifted audio on the Alarm/Accessibility stream.**
+### Android (API 29+)
+- **Standard Mode (No Root):** Uses `AudioPlaybackCapture` (with `.excludeUid()` and dynamic native sample-rate detection for Android 16/17), native SoundTouch NDK, dynamic Headphone/Speaker routing, and `MediaSession` volume interception.
+- **Optional Shizuku Mode (Seamless `Media` Stream):** When [Shizuku](https://shizuku.rikka.app/) is active via Wireless Debugging, registers a privileged `MIX_ROUTE_FLAG_LOOP_BACK` `AudioPolicy` to intercept other apps silently and output shifted audio directly on `USAGE_MEDIA` (`STREAM_MUSIC`).
 
-## Build Instructions
+### iOS (iOS 16+)
+- **Built-in Browser Player (`WKWebView`):** Presets for **YouTube Music**, **YouTube**, and **SoundCloud** embedded inside the shared Compose UI, with `UIBackgroundModes: audio` for lock-screen/background playback over the normal Media stream.
+- **Safari Web Extension (`PitchScaleSafariExtension`):** Pitch-shift YouTube, YouTube Music, SoundCloud, and HTML5 audio/video directly inside Mobile Safari (**Settings → Safari → Extensions → Pitch Scaler**).
 
-### Prerequisites
-- Android Studio Ladybug or newer.
-- Android NDK (Side by side) installed via SDK Manager.
-- CMake installed via SDK Manager.
-- An Android 10+ physical device or emulator (API 29+).
+## Building All 3 Apps
+```bash
+# Build Android APK + iOS Simulator App + macOS Desktop App
+./build-all.sh
 
-### Building and Running
-1. Clone this repository.
-2. Open the project in Android Studio.
-3. Gradle will automatically sync and build the CMake/C++ SoundTouch library.
-4. Click **Run** on your target device.
+# Build Android APK + iOS Physical Device App + macOS Desktop App
+./build-all.sh --device
+```
 
-> **Note:** Apps like Spotify allow their audio to be captured by default. However, some apps (like Netflix or banking apps) explicitly forbid screen/audio recording via the `FLAG_SECURE` layout flag. Pitch Scaler cannot record audio from those apps.
-
-## Architecture & Technical Stack
-- **Kotlin & Jetpack Compose:** For the UI, Foreground Services, and Android API interfacing.
-- **C++ (NDK/JNI):** For the heavy lifting DSP algorithms to ensure the app doesn't suffer from JVM garbage collection stuttering.
-- **CMake:** For cross-compiling the SoundTouch library.
+Outputs:
+- `dist/PitchScale-android.apk`
+- `dist/PitchScale-ios.app.zip` (contains `PitchScale.app` + `PlugIns/PitchScaleSafariExtension.appex`)
+- `dist/Pitch Scaler.app` (macOS Menu Bar + Dock app — run `open "dist/Pitch Scaler.app"`)

@@ -1,0 +1,57 @@
+name: PitchScale
+options:
+  bundleIdPrefix: com.example.pitchscale
+  deploymentTarget:
+    iOS: "16.0"
+  xcodeVersion: "16.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "2.0"
+    CURRENT_PROJECT_VERSION: "2"
+
+targets:
+  PitchScale:
+    type: application
+    platform: iOS
+    sources:
+      - path: PitchScale
+        excludes:
+          - "**/*.md"
+      - path: GeneratedResources
+        buildPhase: resources
+    dependencies:
+      - target: PitchScaleSafariExtension
+        embed: true
+      - framework: ../composeApp/build/bin/iosSimulatorArm64/debugFramework/ComposeApp.framework
+        embed: false
+        link: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.pitchscale
+        INFOPLIST_FILE: PitchScale/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        FRAMEWORK_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/../composeApp/build/bin/iosSimulatorArm64/debugFramework"
+          - "$(SRCROOT)/../composeApp/build/bin/iosArm64/debugFramework"
+        OTHER_LDFLAGS:
+          - "$(inherited)"
+          - "-framework"
+          - "ComposeApp"
+        CODE_SIGNING_ALLOWED: "NO"
+
+  PitchScaleSafariExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PitchScaleSafariExtension/SafariWebExtensionHandler.swift
+      - path: PitchScaleSafariExtension/Resources
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.pitchscale.SafariExtension
+        INFOPLIST_FILE: PitchScaleSafariExtension/Info.plist
+        SKIP_INSTALL: "YES"
+        CODE_SIGNING_ALLOWED: "NO"

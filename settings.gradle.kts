@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "PitchScale"
-include(":app")
+include(":composeApp")

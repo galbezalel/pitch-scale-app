@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Pitch Scaler",
+  "description": "Real-time pitch shifting for YouTube, YouTube Music, SoundCloud, and web audio.",
+  "version": "2.0",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://music.youtube.com/*",
+    "*://*.soundcloud.com/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Pitch Scaler"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["worklet-loader.js", "pitch-engine.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
